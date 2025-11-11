@@ -24,12 +24,19 @@ class AIAssistant:
         # Передаем и ai_client и ai_service
         handlers = get_all_handlers(self.ai_client, self.ai_service)
         
+        # Сохраняем ai_handler в bot_data для доступа из других обработчиков
+        self.application.bot_data['ai_service'] = self.ai_service
+        self.application.bot_data['ai_handler'] = None
+        
         for handler in handlers:
             if isinstance(handler, tuple):
                 command_name, handler_func = handler
                 self.application.add_handler(CommandHandler(command_name, handler_func))
             else:
                 self.application.add_handler(handler)
+                # Сохраняем ссылку на ai_handler
+                if hasattr(handler, 'callback') and 'ai_handler' in str(handler.callback):
+                    self.application.bot_data['ai_handler'] = handler.callback
 
     def run(self):
         print("Running...")
