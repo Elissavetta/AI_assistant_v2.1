@@ -18,10 +18,10 @@ class Config:
     
     # Описания для пользователей
     MODEL_DESCRIPTIONS = {
-        "deepseek": "DeepSeek Chat (умный и сбалансированный)",
-        "qwen": "QWEN Coder (для программирования)",
-        "gpt": "GPT-5 Mini (быстрый и экономный)",
-        "sonar": "Sonar (ищет актуальную информацию в сети)"
+        "deepseek": "DeepSeek Chat",
+        "qwen": "QWEN Coder",
+        "gpt": "GPT-5 Mini",
+        "sonar": "Sonar"
     }
     
     # Модель по умолчанию

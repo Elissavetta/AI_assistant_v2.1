@@ -18,7 +18,7 @@ class ModelCommands:
             indicator = "●" if model_key == current_model else "○"
             message += f"{indicator} /{model_key} - {model_description}\n"
         
-        message += "\n<i>Используйте команды выше для смены модели</i>"
+        message += "\n<i>💡Используй команды выше для смены модели</i>"
         
         await update.message.reply_text(message, parse_mode='HTML')
 
@@ -48,5 +48,5 @@ class ModelCommands:
             )
         else:
             await update.message.reply_text(
-                "❌ Неизвестная модель. Используйте /model для списка доступных моделей."
+                "❌ Неизвестная модель. Используй /model для списка доступных моделей."
             )

@@ -1,57 +1,48 @@
 from telegram import Update
 from telegram.ext import ContextTypes
-import logging
+from telegram.constants import ChatType
+import asyncio
 
 class ClearCommand:
-    def __init__(self):
-        self.logger = logging.getLogger(__name__)
-
     async def clear_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Простая и надежная очистка чата"""
+        chat = update.effective_chat
+        
+        # Проверка прав в группах
+        if chat.type != ChatType.PRIVATE:
+            bot_member = await chat.get_member(context.bot.id)
+            if not bot_member.can_delete_messages:
+                await update.message.reply_text("❌ Нет прав для удаления сообщений")
+                return
+        
+        chat_id = chat.id
+        current_id = update.message.message_id
+        
+        # Сразу отправляем сообщение
+        result_msg = await context.bot.send_message(chat_id, "🔄 Очищаю чат...")
+        
+        deleted_count = 0
+        
+        # Удаляем команду clear
         try:
-            chat_id = update.effective_chat.id
-            current_message_id = update.message.message_id
-            
-            self.logger.info(f"Clear command called in chat {chat_id}, message {current_message_id}")
-            
-            # Сразу пытаемся удалить команду clear
+            await context.bot.delete_message(chat_id, current_id)
+            deleted_count += 1
+        except:
+            pass
+        
+        # Удаляем 100 сообщений быстрым перебором
+        for i in range(1, 101):
             try:
-                await context.bot.delete_message(chat_id, current_message_id)
-                self.logger.info("Clear command message deleted")
-            except Exception as e:
-                self.logger.warning(f"Could not delete clear command: {e}")
-            
-            deleted_count = 0
-            
-            # Пробуем удалить 100 сообщений ПОД текущим сообщением
-            for i in range(1, 101):
-                try:
-                    target_id = current_message_id - i
-                    if target_id <= 0:
-                        break
-                    
-                    await context.bot.delete_message(chat_id, target_id)
-                    deleted_count += 1
-                    self.logger.info(f"Deleted message {target_id}")
-                    
-                except Exception as e:
-                    # Просто продолжаем при любой ошибке
-                    continue
-            
-            # Отправляем результат
-            result_msg = await context.bot.send_message(
-                chat_id, 
-                f"✅ Удалено {deleted_count} сообщений"
-            )
-            
-            # Пытаемся удалить результат через 3 секунды
-            try:
-                import asyncio
-                await asyncio.sleep(3)
-                await context.bot.delete_message(chat_id, result_msg.message_id)
+                target_id = current_id - i
+                # Быстрое удаление без задержек
+                await context.bot.delete_message(chat_id, target_id)
+                deleted_count += 1
             except:
+                # Мгновенно переходим к следующему сообщению
                 pass
-                
-        except Exception as e:
-            self.logger.error(f"Clear command failed: {e}")
-            await update.message.reply_text(f"❌ Ошибка: {str(e)}")
+        
+        # Мгновенно обновляем результат
+        await result_msg.edit_text(f"✅ Удалено {deleted_count} сообщений")
+        
+        # Удаляем подтверждение через 3 секунды
+        await asyncio.sleep(3)
+        await result_msg.delete()
