@@ -1,48 +1,49 @@
 import logging
 from config import Config
 
+
 class AIService:
     def __init__(self, ai_client):
         self.ai_client = ai_client
         self.logger = logging.getLogger(__name__)
-        self.current_model = Config.DEFAULT_MODEL  # Храним простые имена
 
-    def set_model(self, model_key: str) -> bool:
-        """Устанавливает модель для AI по простому имени"""
-        if model_key in Config.MODEL_MAPPING:
-            self.current_model = model_key
-            return True
-        return False
+    def is_valid_model(self, model_key: str) -> bool:
+        return model_key in Config.MODEL_MAPPING
 
-    def get_current_model(self) -> str:
-        """Возвращает текущую модель (простое имя)"""
-        return self.current_model
-
-    def get_current_model_real_name(self) -> str:
-        """Возвращает реальное имя текущей модели для API"""
-        return Config.MODEL_MAPPING[self.current_model]
+    def get_real_model_name(self, model_key: str) -> str | None:
+        return Config.MODEL_MAPPING.get(model_key)
 
     def get_available_models(self) -> dict:
-        """Возвращает доступные модели с описаниями"""
         return Config.MODEL_DESCRIPTIONS
 
-    async def get_ai_response(self, user_message: str) -> str:
-        """Получает ответ от AI модели"""
-        real_model_name = self.get_current_model_real_name()
-        
+    async def get_ai_response(self, user_message: str, model_key: str) -> str:
+        real_model_name = self.get_real_model_name(model_key)
+        if not real_model_name:
+            return "Модель не найдена."
+
         try:
-            completion = self.ai_client.chat.completions.create(
-                model=real_model_name,  # Используем реальное имя для API
+            completion = await self.ai_client.chat.completions.create(
+                model=real_model_name,
                 messages=[
-                    {"role": "system", "content": """Ты — дружелюбный ИИ-ассистент в Telegram. Тон: вежливо-деловой, помогающий. Структурируй ответы (списки, абзацы, эмодзи), используй вежливые формы, но обращайся на "Ты". Показывай эмпатию и проактивность в помощи ("Конечно, я помогу", "Хороший вопрос!") . Используй форматирование в Telegram. Приводи в скобках примеры для лучшего понимания. В конце  ответа добавляй интересный факт по теме вопроса."""},
-                    {"role": "user", "content": user_message}
+                    {
+                        "role": "system",
+                        "content": """Ты — дружелюбный ИИ-ассистент в Telegram. Тон: вежливо-деловой, помогающий. Структурируй ответы (списки, абзацы, эмодзи), используй вежливые формы, но обращайся на "Ты". Показывай эмпатию и проактивность в помощи ("Конечно, я помогу", "Хороший вопрос!") . Используй форматирование в Telegram. Приводи в скобках примеры для лучшего понимания. В конце  ответа добавляй интересный факт по теме вопроса.""",
+                    },
+                    {"role": "user", "content": user_message},
                 ],
                 max_tokens=1000,
-                temperature=0.7
+                temperature=0.7,
             )
-            
-            return completion.choices[0].message.content
-            
+
+            response = completion.choices[0].message.content
+            return self._chunk_response(response)
+
         except Exception as e:
             self.logger.error(f"Ошибка API AITUNNEL ({real_model_name}): {e}")
-            return "❌ Извини, в настоящее время сервис недоступен. Попробуй позже."
+            return "Извини, в настоящее время сервис недоступен. Попробуй позже."
+
+    @staticmethod
+    def _chunk_response(text: str, max_length: int = 4000) -> str:
+        if len(text) <= max_length:
+            return text
+        return text[: max_length - 3] + "..."
