@@ -1,5 +1,5 @@
-import httpx
 from telegram import Update
+from telegram.error import TimedOut
 from telegram.ext import ContextTypes
 import logging
 from services.voice_service import VoiceService
@@ -52,19 +52,6 @@ class AIHandler:
 
         try:
             video_bytes = await self.video_service.generate_video(prompt)
-            await status_message.delete()
-            await update.message.reply_video(
-                video_bytes,
-                filename="video.mp4",
-                write_timeout=120,
-                read_timeout=120,
-            )
-        except httpx.TimeoutException:
-            await status_message.delete()
-            self.logger.error("Таймаут при отправке видео в Telegram")
-            await update.message.reply_text(
-                "Видео слишком долго загружалось в Telegram. Попробуйте ещё раз."
-            )
         except Exception as e:
             await status_message.delete()
             self.logger.error(
@@ -73,6 +60,29 @@ class AIHandler:
             error_text = str(e) or "Неизвестная ошибка"
             await update.message.reply_text(
                 f"Произошла ошибка при генерации видео: {error_text}"
+            )
+            return
+
+        await status_message.delete()
+
+        try:
+            await update.message.reply_video(
+                video_bytes,
+                filename="video.mp4",
+                write_timeout=300,
+                read_timeout=300,
+            )
+        except TimedOut:
+            self.logger.error("Таймаут при отправке видео в Telegram")
+            await update.message.reply_text(
+                "Видео слишком долго загружалось в Telegram. Попробуйте ещё раз."
+            )
+        except Exception as e:
+            self.logger.error(
+                f"Ошибка отправки видео: {e}", exc_info=True
+            )
+            await update.message.reply_text(
+                f"Произошла ошибка при отправке видео: {e}"
             )
 
     async def handle_voice(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
