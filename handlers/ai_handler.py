@@ -1,4 +1,5 @@
-from telegram import Update, BufferedInputFile
+import httpx
+from telegram import Update
 from telegram.ext import ContextTypes
 import logging
 from services.voice_service import VoiceService
@@ -53,7 +54,16 @@ class AIHandler:
             video_bytes = await self.video_service.generate_video(prompt)
             await status_message.delete()
             await update.message.reply_video(
-                BufferedInputFile(video_bytes, filename="video.mp4")
+                video_bytes,
+                filename="video.mp4",
+                write_timeout=120,
+                read_timeout=120,
+            )
+        except httpx.TimeoutException:
+            await status_message.delete()
+            self.logger.error("Таймаут при отправке видео в Telegram")
+            await update.message.reply_text(
+                "Видео слишком долго загружалось в Telegram. Попробуйте ещё раз."
             )
         except Exception as e:
             await status_message.delete()
