@@ -1,4 +1,4 @@
-from telegram import Update
+from telegram import Update, BufferedInputFile
 from telegram.ext import ContextTypes
 import logging
 from services.voice_service import VoiceService
@@ -52,7 +52,9 @@ class AIHandler:
         try:
             video_bytes = await self.video_service.generate_video(prompt)
             await status_message.delete()
-            await update.message.reply_video(video_bytes)
+            await update.message.reply_video(
+                BufferedInputFile(video_bytes, filename="video.mp4")
+            )
         except Exception as e:
             await status_message.delete()
             self.logger.error(

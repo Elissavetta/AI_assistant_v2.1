@@ -22,7 +22,7 @@ class VideoService:
             "Content-Type": "application/json",
         }
 
-        timeout = httpx.Timeout(30.0, connect=10.0, read=60.0)
+        timeout = httpx.Timeout(30.0, connect=10.0, read=120.0)
 
         async with httpx.AsyncClient(timeout=timeout) as client:
             response = await client.post(
