@@ -55,8 +55,13 @@ class AIHandler:
             await update.message.reply_video(video_bytes)
         except Exception as e:
             await status_message.delete()
-            self.logger.error(f"Ошибка генерации видео: {e}")
-            await update.message.reply_text("Произошла ошибка при генерации видео")
+            self.logger.error(
+                f"Ошибка генерации видео: {e}", exc_info=True
+            )
+            error_text = str(e) or "Неизвестная ошибка"
+            await update.message.reply_text(
+                f"Произошла ошибка при генерации видео: {error_text}"
+            )
 
     async def handle_voice(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not update.message or not update.message.voice:

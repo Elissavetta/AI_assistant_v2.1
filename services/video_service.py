@@ -22,9 +22,11 @@ class VideoService:
             "Content-Type": "application/json",
         }
 
-        async with httpx.AsyncClient() as client:
+        timeout = httpx.Timeout(30.0, connect=10.0, read=60.0)
+
+        async with httpx.AsyncClient(timeout=timeout) as client:
             response = await client.post(
-                f"{self.base_url}/v1/videos",
+                f"{self.base_url}/videos",
                 headers=headers,
                 json={
                     "model": "veo-3.1-lite",
@@ -35,19 +37,35 @@ class VideoService:
             )
             response.raise_for_status()
             job = response.json()
-            self.logger.info(f"Video job created: {job['id']}")
+            self.logger.info(f"Video job created: {job.get('id', 'unknown')}")
+
+            self._validate_job_keys(job, ["id", "polling_url", "status"])
 
             while job.get("status") not in ("completed", "failed"):
                 await asyncio.sleep(poll_interval)
                 response = await client.get(job["polling_url"], headers=headers)
                 response.raise_for_status()
                 job = response.json()
-                self.logger.info(f"Video job {job['id']} status: {job['status']}")
+                self.logger.info(
+                    f"Video job {job.get('id', 'unknown')} status: {job.get('status', 'unknown')}"
+                )
 
             if job["status"] == "failed":
                 raise RuntimeError(job.get("error", "Video generation failed"))
 
+            self._validate_job_keys(job, ["unsigned_urls"])
             video_url = job["unsigned_urls"][0]
             video_response = await client.get(video_url, headers=headers)
             video_response.raise_for_status()
             return video_response.content
+
+    def _validate_job_keys(self, job: dict, required_keys: list[str]):
+        missing = [k for k in required_keys if k not in job]
+        if missing:
+            self.logger.error(
+                f"API ответ не содержит ожидаемых ключей: {missing}. "
+                f"Полученный ответ: {job}"
+            )
+            raise KeyError(
+                f"Неожиданный формат ответа API. Отсутствуют ключи: {missing}"
+            )
